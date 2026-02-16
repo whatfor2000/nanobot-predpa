@@ -3,6 +3,8 @@
 import asyncio
 import os
 import re
+import sys
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -67,11 +69,16 @@ class ExecTool(Tool):
             return guard_error
         
         try:
+            kwargs = {}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = subprocess.CREATE_BREAKAWAY_FROM_JOB
+
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
+                **kwargs,
             )
             
             try:
