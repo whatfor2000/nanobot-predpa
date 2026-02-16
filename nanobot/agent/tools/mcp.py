@@ -1,12 +1,23 @@
 """MCP client: connects to MCP servers and wraps their tools as native nanobot tools."""
 
 from contextlib import AsyncExitStack
+import sys
 from typing import Any
 
 from loguru import logger
 
 from nanobot.agent.tools.base import Tool
 from nanobot.agent.tools.registry import ToolRegistry
+
+
+# Patch mcp on Windows to avoid Job Object errors
+if sys.platform == "win32":
+    try:
+        import mcp.os.win32.utilities
+        # Monkeypatch to avoid Job Object creation which fails in nested environments
+        mcp.os.win32.utilities._create_job_object = lambda: None
+    except ImportError:
+        pass
 
 
 class MCPToolWrapper(Tool):
