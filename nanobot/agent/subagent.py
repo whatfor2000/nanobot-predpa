@@ -54,6 +54,7 @@ class SubagentManager:
         self,
         task: str,
         label: str | None = None,
+        role: str | None = None,
         origin_channel: str = "cli",
         origin_chat_id: str = "direct",
     ) -> str:
@@ -79,7 +80,7 @@ class SubagentManager:
         
         # Create background task
         bg_task = asyncio.create_task(
-            self._run_subagent(task_id, task, display_label, origin)
+            self._run_subagent(task_id, task, display_label, role, origin)
         )
         self._running_tasks[task_id] = bg_task
         
@@ -94,6 +95,7 @@ class SubagentManager:
         task_id: str,
         task: str,
         label: str,
+        role: str | None,
         origin: dict[str, str],
     ) -> None:
         """Execute the subagent task and announce the result."""
@@ -116,7 +118,7 @@ class SubagentManager:
             tools.register(WebFetchTool())
             
             # Build messages with subagent-specific prompt
-            system_prompt = self._build_subagent_prompt(task)
+            system_prompt = self._build_subagent_prompt(task, role)
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},
@@ -215,19 +217,34 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
         await self.bus.publish_inbound(msg)
         logger.debug(f"Subagent [{task_id}] announced result to {origin['channel']}:{origin['chat_id']}")
     
-    def _build_subagent_prompt(self, task: str) -> str:
+    def _build_subagent_prompt(self, task: str, role: str | None = None) -> str:
         """Build a focused system prompt for the subagent."""
         from datetime import datetime
         import time as _time
         now = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
         tz = _time.strftime("%Z") or "UTC"
 
-        return f"""# Subagent
+        role_prompt = self._load_role_prompt(role) if role else ""
+        
+        memory_section = ""
+        if role:
+            memory_section = f"""
+## Role Memory
+You have access to role-specific memory:
+- Long-term memory: {self.workspace}/memory/{role}/MEMORY.md
+- History log: {self.workspace}/memory/{role}/HISTORY.md (grep-searchable)
+
+When remembering important facts for your role, write to MEMORY.md.
+"""
+
+        return f"""# Subagent{f" ({role})" if role else ""}
 
 ## Current Time
 {now} ({tz})
 
 You are a subagent spawned by the main agent to complete a specific task.
+
+{role_prompt}
 
 ## Rules
 1. Stay focused - complete only the assigned task, nothing else
@@ -249,8 +266,25 @@ You are a subagent spawned by the main agent to complete a specific task.
 ## Workspace
 Your workspace is at: {self.workspace}
 Skills are available at: {self.workspace}/skills/ (read SKILL.md files as needed)
+{memory_section}
 
 When you have completed the task, provide a clear summary of your findings or actions."""
+
+    def _load_role_prompt(self, role: str) -> str:
+        """Load the system prompt for a specific role."""
+        if not role:
+            return ""
+        
+        # Check workspace/{role}/AGENT.md
+        role_file = self.workspace / role / "AGENT.md"
+        if role_file.exists():
+            try:
+                content = role_file.read_text(encoding="utf-8")
+                return f"## Role: {role}\n\n{content}\n"
+            except Exception as e:
+                logger.warning(f"Failed to load role file {role_file}: {e}")
+        
+        return ""
     
     def get_running_count(self) -> int:
         """Return the number of currently running subagents."""

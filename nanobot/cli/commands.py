@@ -323,7 +323,7 @@ def gateway(
     from nanobot.channels.manager import ChannelManager
     from nanobot.session.manager import SessionManager
     from nanobot.cron.service import CronService
-    from nanobot.cron.types import CronJob
+    from nanobot.cron.definitions import CronJob
     from nanobot.heartbeat.service import HeartbeatService
     
     if verbose:
@@ -756,7 +756,7 @@ def cron_add(
     """Add a scheduled job."""
     from nanobot.config.loader import get_data_dir
     from nanobot.cron.service import CronService
-    from nanobot.cron.types import CronSchedule
+    from nanobot.cron.definitions import CronSchedule
     
     # Determine schedule type
     if every:

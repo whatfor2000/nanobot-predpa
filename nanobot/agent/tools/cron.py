@@ -4,7 +4,7 @@ from typing import Any
 
 from nanobot.agent.tools.base import Tool
 from nanobot.cron.service import CronService
-from nanobot.cron.types import CronSchedule
+from nanobot.cron.definitions import CronSchedule
 
 
 class CronTool(Tool):

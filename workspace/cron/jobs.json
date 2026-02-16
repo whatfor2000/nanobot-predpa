@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "id": "24h-cycle",
+      "name": "24h Cycle Check",
+      "enabled": true,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 14400000 
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "[System Notification: Cycle Check]\nIt is time to review the project state (PROJECT.md). Check active tasks, verify progress with subagents, or start new tasks from the backlog.",
+        "deliver": true,
+        "channel": "cli",
+        "to": "direct"
+      }
+    }
+  ]
+}
