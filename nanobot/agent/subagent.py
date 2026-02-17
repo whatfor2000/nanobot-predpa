@@ -54,6 +54,7 @@ class SubagentManager:
         self,
         task: str,
         label: str | None = None,
+        role: str | None = None,
         origin_channel: str = "cli",
         origin_chat_id: str = "direct",
     ) -> str:
@@ -63,6 +64,7 @@ class SubagentManager:
         Args:
             task: The task description for the subagent.
             label: Optional human-readable label for the task.
+            role: Optional role name (loads prompt from workspace/<role>/AGENT.md).
             origin_channel: The channel to announce results to.
             origin_chat_id: The chat ID to announce results to.
         
@@ -79,14 +81,14 @@ class SubagentManager:
         
         # Create background task
         bg_task = asyncio.create_task(
-            self._run_subagent(task_id, task, display_label, origin)
+            self._run_subagent(task_id, task, display_label, origin, role)
         )
         self._running_tasks[task_id] = bg_task
         
         # Cleanup when done
         bg_task.add_done_callback(lambda _: self._running_tasks.pop(task_id, None))
         
-        logger.info(f"Spawned subagent [{task_id}]: {display_label}")
+        logger.info(f"Spawned subagent [{task_id}]: {display_label} (role: {role or 'default'})")
         return f"Subagent [{display_label}] started (id: {task_id}). I'll notify you when it completes."
     
     async def _run_subagent(
@@ -95,6 +97,7 @@ class SubagentManager:
         task: str,
         label: str,
         origin: dict[str, str],
+        role: str | None = None,
     ) -> None:
         """Execute the subagent task and announce the result."""
         logger.info(f"Subagent [{task_id}] starting task: {label}")
@@ -103,6 +106,18 @@ class SubagentManager:
             # Build subagent tools (no message tool, no spawn tool)
             tools = ToolRegistry()
             allowed_dir = self.workspace if self.restrict_to_workspace else None
+            
+            # Setup role-specific memory if role is provided
+            memory_dir = None
+            if role:
+                 role_slug = role.lower().replace(" ", "_")
+                 memory_dir = self.workspace / role_slug / "memory"
+                 from nanobot.agent.memory import MemoryStore
+                 # Just creating the directory structure if it doesn't exist
+                 # We don't inject memory into context yet unless requested, 
+                 # but we could add a read_memory tool scoped to this dir.
+                 MemoryStore(self.workspace, memory_dir=memory_dir) # Ensure exist
+
             tools.register(ReadFileTool(allowed_dir=allowed_dir))
             tools.register(WriteFileTool(allowed_dir=allowed_dir))
             tools.register(EditFileTool(allowed_dir=allowed_dir))
@@ -116,7 +131,7 @@ class SubagentManager:
             tools.register(WebFetchTool())
             
             # Build messages with subagent-specific prompt
-            system_prompt = self._build_subagent_prompt(task)
+            system_prompt = self._build_subagent_prompt(task, role)
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},
@@ -215,19 +230,32 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
         await self.bus.publish_inbound(msg)
         logger.debug(f"Subagent [{task_id}] announced result to {origin['channel']}:{origin['chat_id']}")
     
-    def _build_subagent_prompt(self, task: str) -> str:
+    def _build_subagent_prompt(self, task: str, role: str | None = None) -> str:
         """Build a focused system prompt for the subagent."""
         from datetime import datetime
         import time as _time
         now = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
         tz = _time.strftime("%Z") or "UTC"
 
+        base_prompt = ""
+        if role:
+            role_slug = role.lower().replace(" ", "_")
+            prompt_file = self.workspace / role_slug / "AGENT.md"
+            if prompt_file.exists():
+                base_prompt = prompt_file.read_text(encoding="utf-8")
+            else:
+                logger.warning(f"Role prompt not found: {prompt_file}")
+                base_prompt = f"You are a {role} agent."
+        
+        if not base_prompt:
+             base_prompt = "You are a subagent spawned by the main agent to complete a specific task."
+
         return f"""# Subagent
+        
+{base_prompt}
 
 ## Current Time
 {now} ({tz})
-
-You are a subagent spawned by the main agent to complete a specific task.
 
 ## Rules
 1. Stay focused - complete only the assigned task, nothing else

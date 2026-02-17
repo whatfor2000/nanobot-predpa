@@ -8,8 +8,12 @@ from nanobot.utils.helpers import ensure_dir
 class MemoryStore:
     """Two-layer memory: MEMORY.md (long-term facts) + HISTORY.md (grep-searchable log)."""
 
-    def __init__(self, workspace: Path):
-        self.memory_dir = ensure_dir(workspace / "memory")
+    def __init__(self, workspace: Path, memory_dir: Path | None = None):
+        if memory_dir:
+             self.memory_dir = ensure_dir(memory_dir)
+        else:
+             self.memory_dir = ensure_dir(workspace / "memory")
+        
         self.memory_file = self.memory_dir / "MEMORY.md"
         self.history_file = self.memory_dir / "HISTORY.md"
 

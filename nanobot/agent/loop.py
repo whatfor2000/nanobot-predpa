@@ -244,7 +244,30 @@ class AgentLoop:
         self._running = False
         logger.info("Agent loop stopping")
     
+    async def _process_agent_message(self, role: str, msg: InboundMessage) -> OutboundMessage | None:
+        """Process a message directed to a specific agent role."""
+        if not hasattr(self, "agents"):
+            self.agents: dict[str, Any] = {}
+            
+        if role not in self.agents:
+            from nanobot.agent.agent import Agent
+            logger.info(f"Initializing new agent for role: {role}")
+            self.agents[role] = Agent(
+                role=role,
+                workspace=self.workspace,
+                bus=self.bus,
+                provider=self.provider,
+                model=self.model
+            )
+            # Potentially start the agent if it has background loops, 
+            # but for now we just use process_message
+            await self.agents[role].start()
+            
+        agent = self.agents[role]
+        return await agent.process_message(msg)
+
     async def _process_message(self, msg: InboundMessage, session_key: str | None = None) -> OutboundMessage | None:
+
         """
         Process a single inbound message.
         
@@ -263,6 +286,12 @@ class AgentLoop:
         logger.info(f"Processing message from {msg.channel}:{msg.sender_id}: {preview}")
         
         key = session_key or msg.session_key
+        
+        # Route agent-to-agent messages
+        if msg.channel.startswith("agent:"):
+            target_role = msg.channel.split(":", 1)[1]
+            return await self._process_agent_message(target_role, msg)
+
         session = self.sessions.get_or_create(key)
         
         # Handle slash commands

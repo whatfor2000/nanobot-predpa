@@ -3,8 +3,8 @@
 from typing import Any, Callable, Awaitable
 
 from nanobot.agent.tools.base import Tool
-from nanobot.bus.events import OutboundMessage
-
+from nanobot.bus.events import OutboundMessage, InboundMessage
+import nanobot.bus.queue
 
 class MessageTool(Tool):
     """Tool to send messages to users on chat channels."""
@@ -34,7 +34,7 @@ class MessageTool(Tool):
     
     @property
     def description(self) -> str:
-        return "Send a message to the user. Use this when you want to communicate something."
+        return "Send a message to the user/channel. Use this when you want to communicate something."
     
     @property
     def parameters(self) -> dict[str, Any]:
@@ -84,3 +84,38 @@ class MessageTool(Tool):
             return f"Message sent to {channel}:{chat_id}"
         except Exception as e:
             return f"Error sending message: {str(e)}"
+
+class SendMessageTool(Tool):
+    """Tool for sending messages to other agents."""
+    
+    name = "send_message"
+    description = "Send a message to another agent or the manager."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "recipient_role": {
+                "type": "string",
+                "description": "The role of the recipient agent (e.g., 'researcher', 'coder', 'manager')."
+            },
+            "content": {
+                "type": "string",
+                "description": "The content of the message."
+            }
+        },
+        "required": ["recipient_role", "content"]
+    }
+
+    def __init__(self, bus: "nanobot.bus.queue.MessageBus", sender_role: str):
+        self.bus = bus
+        self.sender_role = sender_role
+
+    async def execute(self, recipient_role: str, content: str) -> str:
+        """Send a message to another agent."""
+        msg = InboundMessage(
+            channel=f"agent:{recipient_role}",
+            sender_id=f"agent:{self.sender_role}",
+            chat_id="direct", # Internal communication
+            content=content
+        )
+        await self.bus.publish_inbound(msg)
+        return f"Message sent to agent:{recipient_role}"
