@@ -1,65 +1,67 @@
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from nanobot.agent.task import TaskBoard
+from nanobot.agent.tools.base import Tool
 
-class TaskTool:
+
+class TaskTool(Tool):
     """Tool for agents to manage shared tasks."""
     
     def __init__(self, task_board: TaskBoard):
         self.task_board = task_board
-        self.name = "task"
-        self.description = "Manage tasks for agent cooperation. Create, update, and list tasks."
-        
-    def get_definition(self) -> dict:
+    
+    @property
+    def name(self) -> str:
+        return "task"
+    
+    @property
+    def description(self) -> str:
+        return "Manage tasks for agent cooperation. Create, update, and list tasks."
+    
+    @property
+    def parameters(self) -> dict[str, Any]:
         return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "action": {
-                            "type": "string",
-                            "enum": ["create", "update", "list", "get"],
-                            "description": "Action to perform: create a new task, update an existing task, list tasks, or get a specific task."
-                        },
-                        "task_id": {
-                            "type": "string",
-                            "description": "Task ID (required for update and get actions)"
-                        },
-                        "title": {
-                            "type": "string",
-                            "description": "Task title (required for create)"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Task description (required for create, optional for update)"
-                        },
-                        "assignee": {
-                            "type": "string",
-                            "description": "Agent role to assign the task to (e.g., 'engineer', 'researcher')"
-                        },
-                        "status": {
-                            "type": "string",
-                            "enum": ["todo", "in_progress", "review", "done"],
-                            "description": "Task status (optional for update)"
-                        },
-                        "filter_status": {
-                            "type": "string",
-                            "enum": ["todo", "in_progress", "review", "done"],
-                            "description": "Filter tasks by status (for list action)"
-                        },
-                        "filter_assignee": {
-                            "type": "string",
-                            "description": "Filter tasks by assignee (for list action)"
-                        }
-                    },
-                    "required": ["action"]
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["create", "update", "list", "get"],
+                    "description": "Action to perform: create a new task, update an existing task, list tasks, or get a specific task."
+                },
+                "task_id": {
+                    "type": "string",
+                    "description": "Task ID (required for update and get actions)"
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Task title (required for create)"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Task description (required for create, optional for update)"
+                },
+                "assignee": {
+                    "type": "string",
+                    "description": "Agent role to assign the task to (e.g., 'engineer', 'researcher')"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["todo", "in_progress", "review", "done"],
+                    "description": "Task status (optional for update)"
+                },
+                "filter_status": {
+                    "type": "string",
+                    "enum": ["todo", "in_progress", "review", "done"],
+                    "description": "Filter tasks by status (for list action)"
+                },
+                "filter_assignee": {
+                    "type": "string",
+                    "description": "Filter tasks by assignee (for list action)"
                 }
-            }
+            },
+            "required": ["action"]
         }
     
     async def execute(self, **kwargs) -> str:

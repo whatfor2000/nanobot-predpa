@@ -51,7 +51,7 @@ class Agent:
         self._running = False
         
         # Paths
-        self.role_dir = self.workspace / self.role.value
+        self.role_dir = self.workspace / '.agent' / self.role.value
         self.memory_dir = self.role_dir / "memory"
         self.prompt_file = self.role_dir / "AGENT.md"
         
