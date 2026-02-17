@@ -13,6 +13,8 @@ from nanobot.agent.memory import MemoryStore
 from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.providers.base import LLMProvider
 from nanobot.agent.tools.message import SendMessageTool
+from nanobot.agent.task import TaskBoard
+from nanobot.agent.tools.task import TaskTool
 
 from nanobot.agent.subagent import SubagentManager
 from nanobot.agent.tools.filesystem import ReadFileTool, WriteFileTool, EditFileTool, ListDirTool
@@ -67,6 +69,9 @@ class Agent:
             restrict_to_workspace=False # Agents are trusted?
         )
         
+        # Task Board (shared across all agents)
+        self.task_board = TaskBoard(workspace)
+        
         # Tools
         self._register_tools()
 
@@ -91,6 +96,9 @@ class Agent:
         spawn_tool = SpawnTool(self.subagents)
         spawn_tool.set_context(channel=f"agent:{self.role.value}", chat_id="direct")
         self.tools.register(spawn_tool)
+        
+        # 5. Task Management
+        self.tools.register(TaskTool(self.task_board))
 
     async def start(self):
         """Start the agent loop and listen for messages."""

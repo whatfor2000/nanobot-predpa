@@ -1,0 +1,20 @@
+[
+  {
+    "id": "8f7d70c1",
+    "title": "Research Python 3.11 features",
+    "description": "Find and summarize new features in Python 3.11",
+    "status": "in_progress",
+    "assignee": "researcher",
+    "created_at": "2026-02-17T21:45:03.625737",
+    "updated_at": "2026-02-17T21:45:03.636159"
+  },
+  {
+    "id": "9dd6afdc",
+    "title": "Implement feature X",
+    "description": "Write code for feature X based on research",
+    "status": "todo",
+    "assignee": "engineer",
+    "created_at": "2026-02-17T21:45:03.626204",
+    "updated_at": "2026-02-17T21:45:03.626211"
+  }
+]
